@@ -1,0 +1,156 @@
+# Front-door vision AI — a sanitised version of the real automation.
+# Entity IDs are placeholders; the prompt is translated from the Hebrew original.
+# Requires: LLM Vision (HACS) with a Gemini provider, a doorbell camera that
+# exposes person / visitor binary sensors, and scripts/notify_household.
+alias: "Front door — AI description"
+description: >
+  Streams 4 frames over 4 seconds to the vision model so it can judge the
+  direction of movement, then routes the alert by what the model returned.
+mode: single
+max_exceeded: silent
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_person
+    to: "on"
+    for: { seconds: 2 }
+    id: person
+  - trigger: state
+    entity_id: binary_sensor.front_door_visitor   # doorbell press
+    to: "on"
+    id: visitor
+conditions:
+  # Doorbell always goes through; motion is rate-limited to one run per 2 min.
+  - condition: or
+    conditions:
+      - condition: trigger
+        id: visitor
+      - condition: template
+        value_template: >
+          {{ (as_timestamp(now()) - as_timestamp(this.attributes.last_triggered or '1970-01-01')) > 120 }}
+actions:
+  - alias: "Analyse a 4-second clip, not a single frame"
+    action: llmvision.stream_analyzer
+    continue_on_error: true          # a cloud hiccup must never swallow the alert
+    response_variable: ai_result
+    data:
+      provider: !secret llmvision_gemini_provider_id
+      image_entity: [camera.front_door]
+      duration: 4
+      max_frames: 4
+      target_width: 1920
+      temperature: 0.2
+      max_tokens: 350
+      store_in_timeline: true        # feeds the daily / weekly digests
+      response_format: json
+      title_field: title
+      description_field: description
+      structure: >-
+        {"type":"object","additionalProperties":false,
+         "required":["title","description","location","subject","alert"],
+         "properties":{
+           "title":{"type":"string"},
+           "description":{"type":"string"},
+           "location":{"type":"string","enum":["at_door","arriving_home","leaving_home","hallway_passing","stairwell","garbage","elevators","unknown","empty"]},
+           "subject":{"type":"string","enum":["delivery","neighbor","stranger","resident","child","pet","object","none"]},
+           "alert":{"type":"string","enum":["high","normal","ignore"]}}}
+      message: |
+        You are analysing a chronological sequence of frames from a short clip
+        recorded by the camera on our apartment door, looking into the building
+        hallway. Fisheye lens; at night the image is black-and-white (IR).
+
+        Hallway map:
+        - Right side of the frame = fire door / stairwell exit.
+        - Far left, end of the hallway = the elevators.
+        - Left, along the hallway = neighbours' front doors.
+        - Bottom-left, very close to the camera = the service room.
+        - Bottom centre to bottom right, by the doormat = OUR front door.
+
+        Direction of movement is the most important part, and it has been
+        wrong before. Compare the frames and decide by what changed:
+        - The person grows larger / approaches the doormat  -> arriving_home.
+        - The person shrinks / moves away into the hallway   -> leaving_home.
+        - Same size, crossing the frame side to side         -> just passing.
+        - Only one usable frame: face to camera = arriving, back = leaving.
+        - Still unclear -> "unknown". Do not guess and never default to leaving.
+
+        Tie-breakers, in order:
+        1. A pet in the frame suggests a resident, but it does not decide direction.
+        2. Bags, groceries, rubbish or keys do not decide direction either.
+        3. at_door only when the person is very close, by the doormat, facing
+           our door, and does not look like a resident coming home.
+        4. A small, distant person in the hallway is a neighbour passing by.
+        5. Permanent objects in the hallway are not events; only report NEW
+           items such as a parcel.
+        6. alert=high only for a non-resident at the door or unusual behaviour
+           (lingering, touching the handle). alert=ignore for arriving / leaving
+           residents, empty frames and objects.
+
+        In the description, say explicitly whether the person is entering or
+        leaving and what you based it on (face or back). Answer in Hebrew only,
+        short and factual, no guesses about identity.
+
+  - alias: "Unpack the answer"
+    variables:
+      is_visitor: "{{ trigger.id == 'visitor' }}"
+      # If the lock moved in the last 150 s, whoever is at the door is almost
+      # certainly a resident — this single check killed the nightly false alarms.
+      door_used_recently: >
+        {{ (as_timestamp(now()) - as_timestamp(states.lock.front_door.last_changed)) < 150
+           if states.lock.front_door is not none else false }}
+      ai_ok: "{{ ai_result is defined and ai_result.structured_response is defined and (ai_result.structured_response.description | default('')) | length > 0 }}"
+      ai_desc: "{{ ai_result.structured_response.description if ai_ok else '' }}"
+      ai_alert: "{{ ai_result.structured_response.alert | default('normal') if ai_ok else 'normal' }}"
+      ai_loc: "{{ ai_result.structured_response.location | default('empty') if ai_ok else 'empty' }}"
+      is_urgent: "{{ is_visitor or (not door_used_recently and (ai_alert == 'high' or ai_loc == 'at_door')) }}"
+
+  - alias: "Route by what the model returned"
+    choose:
+      - alias: "Fallback — the model failed, still send the picture"
+        conditions: "{{ not ai_ok }}"
+        sequence:
+          - action: script.notify_household
+            data:
+              title: "📷 Motion at the front door"
+              message: "Couldn't analyse the clip — take a look at the photo."
+              image: /api/camera_proxy/camera.front_door_snapshot
+      - alias: "Urgent — doorbell, or a stranger at the door"
+        conditions: "{{ is_urgent }}"
+        sequence:
+          - action: script.notify_household
+            data:
+              title: "{{ '🔔 Someone rang the bell!' if is_visitor else '🚪 Someone at our door' }}"
+              message: "{{ ai_desc }}"
+              image: /api/camera_proxy/camera.front_door_snapshot
+              priority: high
+      - alias: "Passed too quickly — short push, no photo"
+        conditions: "{{ ai_loc == 'empty' }}"
+        sequence:
+          - action: script.notify_household
+            data:
+              title: "👤 Someone passed quickly"
+              message: "Too fast to identify."
+              channels: [push]
+    default:
+      - action: script.notify_household
+        data:
+          title: "{{ ai_loc | replace('_', ' ') }}"
+          message: "{{ ai_desc }}"
+          image: /api/camera_proxy/camera.front_door_snapshot
+
+  - alias: "Speak only when it matters: at the door / arriving / bell / AI down"
+    continue_on_error: true
+    if:
+      - condition: template
+        value_template: "{{ is_visitor or not ai_ok or ai_loc in ['at_door', 'arriving_home'] }}"
+      - condition: time
+        after: "08:00:00"
+        before: "23:00:00"
+    then:
+      - action: media_player.volume_set
+        target: { entity_id: media_player.living_room_speaker }
+        data: { volume_level: 0.45 }
+      - action: tts.cloud_say
+        target: { entity_id: media_player.living_room_speaker }
+        data:
+          language: he-IL
+          message: "{{ 'מצלצלים בדלת' if is_visitor else 'שים לב, מישהו בכניסה' }}"

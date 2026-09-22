@@ -1,0 +1,67 @@
+# One notification script, one change point.
+# Every automation calls this instead of talking to phones / Telegram directly,
+# so replacing a phone means editing this file only.
+notify_household:
+  alias: "Notify household"
+  mode: parallel
+  max: 10
+  fields:
+    message:  { description: "Body", required: true, selector: { text: { multiline: true } } }
+    title:    { description: "Title for the phone notification", selector: { text: {} } }
+    audience: { description: "Who gets it", default: both, selector: { select: { options: [both, person_a, person_b] } } }
+    critical: { description: "Bypass silent / Do Not Disturb", default: false, selector: { boolean: {} } }
+    keyboard: { description: "Telegram inline keyboard rows", selector: { object: {} } }
+    image:    { description: "Camera proxy URL to attach", selector: { text: {} } }
+    priority: { description: "Phone notification priority", default: default, selector: { select: { options: [default, high] } } }
+    channels: { description: "Where to send", default: [telegram, push], selector: { select: { multiple: true, options: [telegram, push] } } }
+  sequence:
+    - variables:
+        aud: "{{ audience | default('both') }}"
+        ttl: "{{ title | default('Smart home') }}"
+        kb: "{{ keyboard | default([]) }}"
+        crit: "{{ critical | default(false) }}"
+        prio: "{{ priority | default('default') }}"
+        ch: "{{ channels | default(['telegram', 'push']) }}"
+    - parallel:
+        - sequence:
+            - condition: template
+              value_template: "{{ aud in ['both', 'person_a'] }}"
+            - if: "{{ 'telegram' in ch }}"
+              then:
+                - action: telegram_bot.send_message
+                  data:
+                    chat_id: !secret telegram_chat_person_a
+                    message: "{{ message }}"
+                    inline_keyboard: "{{ kb if kb else none }}"
+            - if: "{{ 'push' in ch }}"
+              then:
+                - action: notify.mobile_app_phone_a
+                  data:
+                    title: "{{ ttl }}"
+                    message: "{{ message }}"
+                    data:
+                      image: "{{ image | default(none) }}"
+                      importance: "{{ prio }}"
+                      priority: "{{ prio }}"
+                      push: { interruption-level: "{{ 'critical' if crit else 'active' }}" }
+        - sequence:
+            - condition: template
+              value_template: "{{ aud in ['both', 'person_b'] }}"
+            - if: "{{ 'telegram' in ch }}"
+              then:
+                - action: telegram_bot.send_message
+                  data:
+                    chat_id: !secret telegram_chat_person_b
+                    message: "{{ message }}"
+                    inline_keyboard: "{{ kb if kb else none }}"
+            - if: "{{ 'push' in ch }}"
+              then:
+                - action: notify.mobile_app_phone_b
+                  data:
+                    title: "{{ ttl }}"
+                    message: "{{ message }}"
+                    data:
+                      image: "{{ image | default(none) }}"
+                      importance: "{{ prio }}"
+                      priority: "{{ prio }}"
+                      push: { interruption-level: "{{ 'critical' if crit else 'active' }}" }

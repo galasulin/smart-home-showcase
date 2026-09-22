@@ -1,0 +1,43 @@
+# "You left home" — one message with everything still on, and a button for each fix.
+# The Telegram buttons send commands (/close_lights …) that other small
+# automations handle via the telegram_command event.
+alias: "Leaving home — summary"
+mode: single
+triggers:
+  - trigger: state
+    entity_id: person.person_a
+    from: home
+    to: not_home
+    for: { minutes: 3 }            # ignore a quick trip to the rubbish bin
+actions:
+  - variables:
+      lights_on: >
+        {% set ns = namespace(on=[]) %}
+        {% for e in expand('group.all_lights') if e.state == 'on' %}
+          {% set ns.on = ns.on + [e.name] %}
+        {% endfor %}
+        {{ ns.on | join(', ') if ns.on else 'none' }}
+      shutters_open: >
+        {% set ns = namespace(open=[]) %}
+        {% for e in expand('cover.all_shutters') if (e.attributes.current_position | int(0)) > 0 %}
+          {% set ns.open = ns.open + [e.name ~ ' (' ~ e.attributes.current_position ~ '%)'] %}
+        {% endfor %}
+        {{ ns.open | join(', ') if ns.open else 'all closed' }}
+      ac: "{{ 'off' if is_state('climate.living_room_ac', 'off') else states('climate.living_room_ac') ~ ' · ' ~ state_attr('climate.living_room_ac', 'temperature') ~ '°C' }}"
+      lock: "{{ '🔒 locked' if is_state('lock.front_door', 'locked') else '🔓 UNLOCKED ⚠️' }}"
+      heater: "{{ '🔥 ON ⚠️' if is_state('switch.water_heater', 'on') else '✅ off' }}"
+  - action: script.notify_household
+    data:
+      audience: person_a
+      title: "🚪 You left home"
+      message: |
+        💡 Lights on: {{ lights_on }}
+        🪟 Shutters open: {{ shutters_open }}
+        ❄️ AC: {{ ac }}
+        🔒 Door: {{ lock }}
+        🔥 Water heater: {{ heater }}
+        Close everything?
+      keyboard:
+        - "Lights off:/close_lights, Close shutters:/close_shutters"
+        - "AC off:/close_ac, Lock door:/lock_door"
+        - "Close all:/close_all, No thanks:/skip_close"

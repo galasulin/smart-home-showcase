@@ -1,0 +1,31 @@
+# Self-healing Zigbee: restart the add-on after 5 minutes offline, verify,
+# and escalate to a critical push (pointing at the USB dongle) if it didn't help.
+alias: "Zigbee2MQTT — automatic restart"
+mode: single
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.zigbee2mqtt_bridge_connection_state
+    to: "off"
+    for: { minutes: 5 }
+actions:
+  - action: counter.increment
+    target: { entity_id: counter.zigbee_disconnects_monthly }
+  - action: script.notify_household
+    data: { audience: person_a, message: "🔄 Zigbee2MQTT offline for 5 min — restarting the add-on…" }
+  - action: hassio.addon_restart
+    data: { addon: !secret zigbee2mqtt_addon_slug }
+  - delay: { minutes: 2 }
+  - if:
+      - condition: state
+        entity_id: binary_sensor.zigbee2mqtt_bridge_connection_state
+        state: "on"
+    then:
+      - action: script.notify_household
+        data: { audience: person_a, message: "✅ Restart worked — Zigbee is back." }
+    else:
+      - action: script.notify_household
+        data:
+          audience: person_a
+          critical: true
+          title: "❌ Zigbee still offline"
+          message: "Automatic restart didn't help — check the USB coordinator physically."

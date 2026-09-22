@@ -1,0 +1,34 @@
+# Ask, don't act: low western sun + heat → the house *suggests* closing the
+# west-facing shutters (voice + Telegram button). It never closes them on its own.
+alias: "West shutters — sun & heat suggestion"
+mode: single
+triggers:
+  - trigger: numeric_state
+    entity_id: sun.sun
+    attribute: azimuth
+    above: 235
+conditions:
+  - condition: numeric_state
+    entity_id: sun.sun
+    attribute: elevation
+    above: 10
+  - condition: numeric_state
+    entity_id: weather.home
+    attribute: temperature
+    above: 27
+  - condition: template
+    value_template: >
+      {{ (state_attr('cover.living_room_west', 'current_position') | int(0)) > 0
+         or (state_attr('cover.balcony', 'current_position') | int(0)) > 0 }}
+actions:
+  - action: tts.cloud_say
+    target: { entity_id: media_player.living_room_speaker }
+    data:
+      language: he-IL
+      message: "שמש מערבית וחום בחוץ. לסגור את תריסי הסלון והמרפסת?"
+  - action: script.notify_household
+    data:
+      title: "☀️ Sun protection?"
+      message: "Low western sun and {{ state_attr('weather.home', 'temperature') }}°C outside. Close the living-room and balcony shutters?"
+      keyboard:
+        - "Close them:/close_west, No thanks:/skip_close"

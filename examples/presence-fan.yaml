@@ -1,0 +1,49 @@
+# Bathroom fan on PIR + mmWave radar (Zigbee).
+# ON  : only after a full minute of continuous presence AND radar-confirmed body motion.
+# OFF : three independent exits, so a stuck sensor can never leave the fan running.
+- alias: "Guest bathroom — fan on after 1 minute"
+  mode: single
+  max_exceeded: silent
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.guest_bathroom_presence
+      to: "on"
+      for: { minutes: 1 }
+  conditions:
+    - condition: state
+      entity_id: sensor.guest_bathroom_motion_state      # radar: none / small / large
+      state: [large, small]
+    - condition: state
+      entity_id: switch.guest_bathroom_fan
+      state: "off"
+  actions:
+    - action: switch.turn_on
+      target: { entity_id: switch.guest_bathroom_fan }
+    - action: timer.start                                 # hard safety net
+      target: { entity_id: timer.guest_bathroom_fan }
+      data: { duration: "00:10:00" }
+
+- alias: "Guest bathroom — fan off (3 exits)"
+  mode: single
+  max_exceeded: silent
+  triggers:
+    - trigger: state                                      # 1. nobody there
+      entity_id: binary_sensor.guest_bathroom_presence
+      to: "off"
+      for: { minutes: 3 }
+    - trigger: state                                      # 2. presence stuck "on", but no body motion
+      entity_id: sensor.guest_bathroom_motion_state
+      to: none
+      for: { minutes: 3 }
+    - trigger: state                                      # 3. the timer ran out
+      entity_id: timer.guest_bathroom_fan
+      to: idle
+  conditions:
+    - condition: state
+      entity_id: switch.guest_bathroom_fan
+      state: "on"
+  actions:
+    - action: switch.turn_off
+      target: { entity_id: switch.guest_bathroom_fan }
+    - action: timer.cancel
+      target: { entity_id: timer.guest_bathroom_fan }

@@ -1,0 +1,38 @@
+# Battery death forecast: uses a 30-day "change" statistics sensor per battery
+# to estimate the days left, and warns when a battery has < 45 days to live.
+#
+# Each *_30d_change sensor is a `statistics` sensor with characteristic: change
+# and max_age: 30 days over the battery % sensor.
+alias: "Batteries — death forecast"
+mode: single
+triggers:
+  - trigger: time
+    at: "09:15:00"
+actions:
+  - variables:
+      predictions: >-
+        {%- set pairs = [
+          ('Bathroom sensor',    'sensor.bathroom_battery',    'sensor.bathroom_battery_30d_change'),
+          ('Bedroom sensor',     'sensor.bedroom_battery',     'sensor.bedroom_battery_30d_change'),
+          ('Guest WC radar',     'sensor.guest_wc_battery',    'sensor.guest_wc_battery_30d_change'),
+          ('Smart lock',         'sensor.front_door_battery',  'sensor.front_door_battery_30d_change')
+        ] -%}
+        {%- set ns = namespace(alerts=[]) -%}
+        {%- for name, batt_e, chg_e in pairs -%}
+          {%- set batt = states(batt_e) | float(-1) -%}
+          {%- set chg  = states(chg_e)  | float(0) -%}
+          {%- if batt >= 0 and chg < 0 -%}
+            {%- set days = (batt / ((chg | abs) / 30)) | round(0) | int -%}
+            {%- if days <= 45 -%}
+              {%- set ns.alerts = ns.alerts + ['🪫 ' ~ name ~ ': ' ~ (batt | int) ~ '% (~' ~ days ~ ' days left)'] -%}
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ ns.alerts }}
+  - condition: template
+    value_template: "{{ predictions | length > 0 }}"
+  - action: script.notify_household
+    data:
+      audience: person_a
+      title: "🔮 Battery forecast"
+      message: "{{ predictions | join('\n') }}"
