@@ -7,8 +7,8 @@ triggers:
   - trigger: state
     entity_id: person.person_a
     from: home
-    to: not_home
-    for: { minutes: 3 }            # ignore a quick trip to the rubbish bin
+    not_to: [home, unknown, unavailable]   # also fires when leaving straight into another zone
+    for: { minutes: 3 }                    # ignore a quick trip to the rubbish bin
 actions:
   - variables:
       lights_on: >

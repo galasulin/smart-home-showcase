@@ -52,7 +52,7 @@ Most smart homes stop at "turn the light on from your phone". I wanted a house t
 - When a **Home Front Command** siren alert hits the area, the house handles the first 90 seconds by itself.
 - Both phones can ask *"מה קורה בסלון?"* ("what's going on in the living room?") in Telegram and get back a one-line answer written by a vision model.
 
-Everything is built on **Home Assistant OS**: 81 automations, 12 hand-built dashboard views and 54 integrations. The **local-first** rule is strict. Zigbee devices never touch a vendor cloud, video is decoded and analysed on the LAN, and the only camera data that leaves the house is a few frames sent to the vision model. Notifications go out through Telegram and push.
+Everything is built on **Home Assistant OS**: 81 automations, 12 hand-built dashboard views and 54 integrations. The rule is **local where it matters**: Zigbee devices never touch a vendor cloud, and video is decoded and analysed on the LAN by Frigate. Cloud is used deliberately: a few frames go to Gemini for vision, notifications (with snapshots) go out through Telegram and mobile push, speech uses cloud TTS, and a few appliances (vacuums, AC, TVs) are cloud integrations.
 
 > **Design philosophy:** automations should *help* the people living in the house, never fight them. The house acts on its own only in emergencies. For comfort it asks first and waits for a tap.
 
@@ -181,7 +181,7 @@ Twelve views, built by hand with **mushroom cards, card-mod and layout-card**. T
 
 <img src="assets/home-front-alert.png" alt="Alert timeline" width="100%">
 
-The trigger is the official alert sensor for the selected area. Then, in one run: it stamps the start time and increments the weekly counter, lights the path to the protected room, closes the shutter group, turns the AC off, sends a **critical push** (bypasses Do Not Disturb), and sends Telegram the area names from the alert payload. Next comes a Hebrew announcement on the living-room speaker, then a spoken **30 → 5 second countdown**. A separate automation announces when the alert is over.
+The trigger is the official alert sensor for the selected area. Then, in one run: it stamps the start time and increments the weekly counter, lights the path to the protected room, closes the shutter group, turns the AC off, sends a **critical push** (bypasses Do Not Disturb), and posts the alerted area names to Telegram. Next comes a Hebrew announcement on the living-room speaker, then a spoken **30 → 5 second countdown**. A separate automation announces when the alert is over.
 
 ➡️ [`examples/home-front-alert.yaml`](examples/home-front-alert.yaml)
 
@@ -249,7 +249,7 @@ The trigger is the official alert sensor for the selected area. Then, in one run
 
 ## 🛠️ Tech & engineering
 
-- **Platform:** Home Assistant OS 2026.9 with 11 add-ons (Zigbee2MQTT, Mosquitto, Frigate, go2rtc, Matter Server, Studio Code Server, Samba, MCP server…).
+- **Platform:** Home Assistant 2026.9 on Home Assistant OS, with 11 add-ons (Zigbee2MQTT, Mosquitto, Frigate, go2rtc, Matter Server, Studio Code Server, Samba, MCP server…).
 - **Automation style:** modern `triggers:` / `actions:` syntax, trigger IDs + `choose` routers, `variables` blocks to keep templates readable, `namespace()` loops for inventories, and an explicit `mode` / `max_exceeded` per automation.
 - **AI:** LLM Vision (HACS) with Google Gemini, using structured JSON output with enum constraints, stream (multi-frame) and single-image analysis, and a timeline calendar.
 - **UI:** mushroom, card-mod (with a `style: >` fold scalar so Jinja is evaluated), layout-card grid, vertical-stack-in-card, apexcharts, mini-graph, navbar-card for a one-thumb bottom nav, and picture-elements floorplan.
@@ -289,6 +289,6 @@ The trigger is the official alert sensor for the selected area. Then, in one run
 
 **Designed & built by [Gal Asulin](https://github.com/galasulin)**. IT manager, self-taught full-stack developer, home-lab tinkerer.
 
-<sub>Other showcases: <a href="https://github.com/galasulin/clinic-crm">clinic-crm</a> · <a href="https://github.com/galasulin/apostherapy-case-study">apostherapy-case-study</a> · <a href="https://github.com/galasulin/super-asulin-showcase">super-asulin-showcase</a></sub>
+<sub>Other showcases: <a href="https://github.com/galasulin/clinic-crm">clinic-crm</a> · <a href="https://github.com/galasulin/apostherapy-case-study">apostherapy-case-study</a> · <a href="https://github.com/galasulin/super-asulin-showcase">super-asulin-showcase</a> · <a href="https://github.com/galasulin/supermarket-barcode-scanner">supermarket-barcode-scanner</a></sub>
 
 </div>

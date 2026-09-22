@@ -559,7 +559,7 @@ html:has(.shot){scroll-behavior:auto}
 <section class="section wrap" id="arch">
   <div class="eyebrow">Architecture</div>
   <h2>Local first. Cloud only where it earns its place.</h2>
-  <p class="lead">Home Assistant OS runs the core. Zigbee devices never touch a vendor cloud, cameras are decoded and analysed on the LAN with Frigate, and the only camera data that leaves the house is a few frames sent to the vision model. Notifications go out through Telegram and push.</p>
+  <p class="lead">Home Assistant OS runs the core. Zigbee devices never touch a vendor cloud, and cameras are decoded and analysed on the LAN with Frigate. Cloud is used deliberately: a few frames go to Gemini for vision, notifications with snapshots go out through Telegram and push, speech uses cloud TTS, and a few appliances are cloud integrations.</p>
   <div class="arch" id="archBox">
 <svg viewBox="0 0 1140 600" xmlns="http://www.w3.org/2000/svg" font-family="Heebo, system-ui, sans-serif" role="img" aria-label="Architecture diagram">
   <defs>

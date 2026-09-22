@@ -34,7 +34,8 @@ actions:
       language: he-IL
       message: "שים לב! יש התראת פיקוד העורף! היכנסו למרחב המוגן עכשיו!"
   - delay: { seconds: 10 }
-  # Spoken countdown — nobody has to look at a phone.
+  # Spoken reminders at a fixed 5 s cadence (not a live time-to-shelter countdown) —
+  # nobody has to look at a phone.
   - repeat:
       for_each: ["30 שניות", "25 שניות", "20 שניות", "15 שניות", "10 שניות", "5 שניות"]
       sequence:
