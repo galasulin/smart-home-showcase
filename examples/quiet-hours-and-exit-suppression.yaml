@@ -1,0 +1,48 @@
+# Two Oct 2026 additions, sanitised: placeholder entity IDs and !secret only.
+#
+# 1) Quiet hours: no spoken announcements 23:00-08:00; Telegram and mobile push always go out.
+# 2) A known exit suppresses the door-camera alert: if the lock changed in the last 150 seconds,
+#    a person leaving through the door is one of us, not an alert.
+
+script:
+  notify_household:
+    alias: Notify household (respects quiet hours for speech only)
+    mode: queued
+    fields:
+      message: {description: Text to send}
+      speak:   {description: Also announce on the speakers, default: true}
+    sequence:
+      - action: telegram_bot.send_message
+        data:
+          target: !secret telegram_household_chat
+          message: "{{ message }}"
+      - action: notify.mobile_app_phone_a
+        data: {message: "{{ message }}"}
+      - action: notify.mobile_app_phone_b
+        data: {message: "{{ message }}"}
+      - if:
+          - "{{ speak }}"
+          - condition: time
+            after: "08:00:00"
+            before: "23:00:00"
+        then:
+          - action: tts.speak
+            target: {entity_id: tts.cloud_voice}
+            data:
+              media_player_entity_id: media_player.living_room_speaker
+              message: "{{ message }}"
+
+automation:
+  - alias: Door camera - skip the alert on a known exit
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.front_door_person
+        to: "on"
+    conditions:
+      # the lock moved less than 150 s ago -> someone at home just opened it from inside
+      - condition: template
+        value_template: >
+          {{ (now() - states.lock.front_door.last_changed).total_seconds() > 150 }}
+    actions:
+      - action: script.door_camera_analyse   # 4 frames over 4 s -> vision model -> JSON verdict

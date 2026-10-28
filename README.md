@@ -44,6 +44,19 @@
 
 ---
 
+## 🆕 What's new (Oct 2026)
+
+- **Door video analysis with `stream_analyzer`.** The front-door camera now sends **4 frames over 4 seconds** to the vision model, and the prompt carries a written map of the hallway's geography. That is what lets it tell **a neighbour walking past while someone stands at our door** apart from a visitor for us.
+- **No false alarm on a known exit.** If the smart lock changed in the **last 150 seconds**, a person at the door is one of us leaving, so the alert is suppressed.
+- **Guest-toilet fan on mmWave presence.** It starts only after **a full minute of continuous presence**, and it has **three independent ways to turn off**, so a stuck sensor can't leave it running.
+- **TS130F shutters keep their calibration.** These shutter modules were losing their end-stop calibration; the fix is in the **device settings over MQTT**, not in a workaround automation.
+- **Quiet hours.** No spoken announcements **23:00–08:00**; Telegram and mobile push always go out.
+- **56+ automations** after a clean-up pass.
+
+Sanitised YAML for the quiet hours and the known-exit check: [`examples/quiet-hours-and-exit-suppression.yaml`](examples/quiet-hours-and-exit-suppression.yaml) (placeholder entity IDs and `!secret` only).
+
+---
+
 ## 📖 The story
 
 Most smart homes stop at "turn the light on from your phone". I wanted a house that **understands what is happening** and says so in plain Hebrew.
@@ -287,7 +300,7 @@ The trigger is the official alert sensor for the selected area. Then, in one run
 
 <div align="center">
 
-**Designed & built by [Gal Asulin](https://github.com/galasulin)**. IT manager, self-taught full-stack developer, home-lab tinkerer.
+**Built by [Gal Asulin](https://github.com/galasulin), IT Manager.** IT manager, self-taught full-stack developer, home-lab tinkerer.
 
 <sub>Other showcases: <a href="https://github.com/galasulin/clinic-crm">clinic-crm</a> · <a href="https://github.com/galasulin/apostherapy-case-study">apostherapy-case-study</a> · <a href="https://github.com/galasulin/super-asulin-showcase">super-asulin-showcase</a> · <a href="https://github.com/galasulin/supermarket-barcode-scanner">supermarket-barcode-scanner</a></sub>
 
