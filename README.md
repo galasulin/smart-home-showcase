@@ -36,7 +36,7 @@
 
 <br/>
 
-| 669 | 81 | 54 | 39 | 11 | 12 |
+| 669 | 80+ | 54 | 39 | 11 | 12 |
 |:-:|:-:|:-:|:-:|:-:|:-:|
 | **entities** | **automations** | **integrations** | **HACS components** | **add-ons** | **dashboard views** |
 
@@ -51,7 +51,7 @@
 - **Guest-toilet fan on mmWave presence.** It starts only after **a full minute of continuous presence**, and it has **three independent ways to turn off**, so a stuck sensor can't leave it running.
 - **TS130F shutters keep their calibration.** These shutter modules were losing their end-stop calibration; the fix is in the **device settings over MQTT**, not in a workaround automation.
 - **Quiet hours.** No spoken announcements **23:00–08:00**; Telegram and mobile push always go out.
-- **56+ automations** after a clean-up pass.
+- **80+ automations** in total.
 
 Sanitised YAML for the quiet hours and the known-exit check: [`examples/quiet-hours-and-exit-suppression.yaml`](examples/quiet-hours-and-exit-suppression.yaml) (placeholder entity IDs and `!secret` only).
 
@@ -65,7 +65,7 @@ Most smart homes stop at "turn the light on from your phone". I wanted a house t
 - When a **Home Front Command** siren alert hits the area, the house handles the first 90 seconds by itself.
 - Both phones can ask *"מה קורה בסלון?"* ("what's going on in the living room?") in Telegram and get back a one-line answer written by a vision model.
 
-Everything is built on **Home Assistant OS**: 81 automations, 12 hand-built dashboard views and 54 integrations. The rule is **local where it matters**: Zigbee devices never touch a vendor cloud, and video is decoded and analysed on the LAN by Frigate. Cloud is used deliberately: a few frames go to Gemini for vision, notifications (with snapshots) go out through Telegram and mobile push, speech uses cloud TTS, and a few appliances (vacuums, AC, TVs) are cloud integrations.
+Everything is built on **Home Assistant OS**: 80+ automations, 12 hand-built dashboard views and 54 integrations. The rule is **local where it matters**: Zigbee devices never touch a vendor cloud, and video is decoded and analysed on the LAN by Frigate. Cloud is used deliberately: a few frames go to Gemini for vision, notifications (with snapshots) go out through Telegram and mobile push, speech uses cloud TTS, and a few appliances (vacuums, AC, TVs) are cloud integrations.
 
 > **Design philosophy:** automations should *help* the people living in the house, never fight them. The house acts on its own only in emergencies. For comfort it asks first and waits for a tap.
 
@@ -219,7 +219,7 @@ The trigger is the official alert sensor for the selected area. Then, in one run
 |---|---|
 | **Devices** | Zigbee mesh (mmWave + PIR radars, temperature/humidity, 6 shutter motors, wall switches), doorbell + indoor cameras, smart lock, AC, 2 robot vacuums, TVs, IR/RF hub, intercom, Matter |
 | **Local transport** | Zigbee2MQTT → Mosquitto MQTT · go2rtc / WebRTC for low-latency video · **Frigate NVR** for on-LAN object detection |
-| **Core** | 81 automations (`mode` / `max_exceeded` chosen per job) · 5 scripts · counters, timers, 30-day `statistics` sensors, groups · automatic backups |
+| **Core** | 80+ automations (`mode` / `max_exceeded` chosen per job) · 5 scripts · counters, timers, 30-day `statistics` sensors, groups · automatic backups |
 | **AI** | LLM Vision → Google Gemini: `stream_analyzer` (door), `image_analyzer` (Telegram looks), timeline + digests |
 | **Outputs** | Telegram bot · mobile push (critical channel) · Hebrew TTS with quiet hours · 12 dashboard views · actuators |
 | **Operations** | Studio Code Server · Samba · HACS (39 components) · an MCP server for AI-assisted maintenance |
